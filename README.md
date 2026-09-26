@@ -1,19 +1,30 @@
-# papatzoa_mobile
+# Papatzoa Care Mobile
 
-A new Flutter project.
+Cliente móvil de Papatzoa para Android e iOS, desarrollado con Flutter. Implementa inicio de sesión por correo y contraseña, conexión a la API y almacenamiento seguro del token.
 
-## Getting Started
+## Desarrollo
 
-This project is a starting point for a Flutter application.
+Entorno verificado: Flutter 3.47.5 y Dart 3.13.4. El backend local debe ofrecer `/api/login` en el puerto 8000.
 
-A few resources to get you started if this is your first Flutter project:
+```sh
+flutter pub get
+flutter devices
+flutter run --dart-define=ENV=development
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Android Emulator usa `http://10.0.2.2:8000/api`; iOS Simulator usa `http://127.0.0.1:8000/api`. Para usar la API de producción:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```sh
+flutter run --dart-define=ENV=production
+```
 
-# Papatzoa-Care-Mobile
+## Verificación y documentación
+
+```sh
+flutter analyze
+flutter test
+```
+
+Consulta la [documentación técnica](docs/DOCUMENTACION_TECNICA.md) para arquitectura, contrato de API, configuración nativa, pruebas y pendientes.
+
+El login exitoso permanece en la misma pantalla. Paneles por rol, registro, recuperación de contraseña y restauración de sesión están pendientes.
