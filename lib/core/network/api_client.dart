@@ -24,10 +24,11 @@ class ApiClient {
     return baseUri.resolve(path);
   }
 
-  Future<http.Response> get(String path) => _send('GET', path);
+  Future<http.Response> get(String path, {String? token}) =>
+      _send('GET', path, token: token);
 
-  Future<http.Response> post(String path, {Object? body}) =>
-      _send('POST', path, body: body);
+  Future<http.Response> post(String path, {Object? body, String? token}) =>
+      _send('POST', path, body: body, token: token);
 
   Future<http.Response> put(String path, {Object? body}) =>
       _send('PUT', path, body: body);
@@ -41,9 +42,11 @@ class ApiClient {
     String method,
     String path, {
     Object? body,
+    String? token,
   }) async {
     final request = http.Request(method, url(path));
     request.headers['Accept'] = 'application/json';
+    if (token != null) request.headers['Authorization'] = 'Bearer $token';
     if (body != null) {
       request.headers['Content-Type'] = 'application/json';
       request.body = jsonEncode(body);

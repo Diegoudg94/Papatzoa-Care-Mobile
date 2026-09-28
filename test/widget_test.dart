@@ -9,6 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:papatzoa_mobile/core/network/api_client.dart';
 import 'package:papatzoa_mobile/features/auth/data/repositories/auth_repository.dart';
 import 'package:papatzoa_mobile/app/app.dart';
+import 'package:papatzoa_mobile/core/routing/app_router.dart';
+import 'package:papatzoa_mobile/core/theme/app_theme.dart';
 import 'package:papatzoa_mobile/features/auth/presentation/pages/login_page.dart';
 
 import 'auth_test_support.dart';
@@ -30,7 +32,11 @@ void main() {
     );
     addTearDown(repository.close);
     await tester.pumpWidget(
-      MaterialApp(home: LoginPage(repository: repository)),
+      MaterialApp(
+        theme: AppTheme.light,
+        routes: AppRouter.routes,
+        home: LoginPage(repository: repository),
+      ),
     );
     final fields = find.byType(TextFormField);
     await tester.enterText(fields.at(0), 'usuario@example.com');
@@ -48,10 +54,12 @@ void main() {
     response.complete(http.Response(jsonEncode(loginJson), 200));
     await tester.pumpAndSettle();
     expect(find.byType(CircularProgressIndicator), findsNothing);
-    expect(find.text('Sesión iniciada correctamente.'), findsOneWidget);
+    expect(find.text('Dashboard del paciente'), findsOneWidget);
   });
   testWidgets('Papatzoa app starts correctly', (WidgetTester tester) async {
+    FlutterSecureStorage.setMockInitialValues({});
     await tester.pumpWidget(const PapatzoaApp());
+    await tester.pumpAndSettle();
 
     expect(find.text('Papatzoa'), findsOneWidget);
     expect(find.text('Bienvenido de nuevo'), findsOneWidget);
@@ -59,13 +67,17 @@ void main() {
     expect(find.byType(Form), findsOneWidget);
   });
 
-  testWidgets('Login validates and signs in without leaving the page', (
+  testWidgets('Login validates before navigating to patient dashboard', (
     WidgetTester tester,
   ) async {
     final repository = testRepository();
     addTearDown(repository.close);
     await tester.pumpWidget(
-      MaterialApp(home: LoginPage(repository: repository)),
+      MaterialApp(
+        theme: AppTheme.light,
+        routes: AppRouter.routes,
+        home: LoginPage(repository: repository),
+      ),
     );
 
     await tester.ensureVisible(find.text('Iniciar sesión'));
@@ -88,14 +100,21 @@ void main() {
     await tester.tap(find.text('Iniciar sesión'));
     await tester.pumpAndSettle();
     expect(find.text('Ingresa un correo válido.'), findsNothing);
-    expect(find.text('Sesión iniciada correctamente.'), findsOneWidget);
-    expect(find.text('Bienvenido de nuevo'), findsOneWidget);
+    expect(find.text('Dashboard del paciente'), findsOneWidget);
+    expect(find.text('Hola, Ricardo'), findsOneWidget);
+    expect(find.byType(LoginPage), findsNothing);
+    expect(
+      Navigator.of(tester.element(find.text('Hola, Ricardo'))).canPop(),
+      isFalse,
+    );
   });
 
   testWidgets('Next focuses password and Done validates and closes keyboard', (
     WidgetTester tester,
   ) async {
+    FlutterSecureStorage.setMockInitialValues({});
     await tester.pumpWidget(const PapatzoaApp());
+    await tester.pumpAndSettle();
     final fields = find.byType(TextFormField);
 
     await tester.tap(fields.at(0));
@@ -123,6 +142,7 @@ void main() {
   testWidgets('Login remains scrollable with a small keyboard viewport', (
     WidgetTester tester,
   ) async {
+    FlutterSecureStorage.setMockInitialValues({});
     tester.view.physicalSize = const Size(375, 667);
     tester.view.devicePixelRatio = 1;
     tester.view.viewInsets = const FakeViewPadding(bottom: 300);
@@ -131,6 +151,7 @@ void main() {
     addTearDown(tester.view.resetViewInsets);
 
     await tester.pumpWidget(const PapatzoaApp());
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Iniciar sesión'));
     await tester.pump();
     expect(tester.takeException(), isNull);

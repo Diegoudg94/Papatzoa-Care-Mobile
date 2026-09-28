@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/network/api_exceptions.dart';
+import '../../../../core/routing/app_routes.dart';
+import '../../data/models/auth_user.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../data/services/google_sign_in_service.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, this.repository});
+  const LoginPage({super.key, this.repository, this.googleSignInService});
 
   final AuthRepository? repository;
+  final GoogleSignInService? googleSignInService;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -19,22 +23,27 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordController = TextEditingController();
   final _passwordFocusNode = FocusNode();
   late final _repository = widget.repository ?? AuthRepository();
+  late final _googleSignIn =
+      widget.googleSignInService ?? GoogleSignInService();
+  bool _isGoogleSubmitting = false;
   bool _obscurePassword = true;
   bool _isSubmitting = false;
 
   Future<void> _submit() async {
-    if (_isSubmitting) return;
+    if (_isSubmitting || _isGoogleSubmitting) return;
 
     FocusScope.of(context).unfocus();
     if (!(_formKey.currentState?.validate() ?? false)) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     setState(() => _isSubmitting = true);
-    var message = 'Sesión iniciada correctamente.';
+    var message = 'No pudimos identificar el tipo de cuenta.';
+    AuthUser? user;
     try {
-      await _repository.login(
+      final result = await _repository.login(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      user = result.user;
       if (mounted) _passwordController.clear();
     } on ApiException catch (error) {
       message = error.message;
@@ -44,6 +53,45 @@ class _LoginPageState extends State<LoginPage> {
       message = 'No pudimos iniciar sesión. Intenta nuevamente.';
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
+    }
+    if (!mounted) return;
+    _finishLogin(user, message);
+  }
+
+  Future<void> _submitGoogle() async {
+    if (_isSubmitting || _isGoogleSubmitting) return;
+    FocusScope.of(context).unfocus();
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    setState(() => _isGoogleSubmitting = true);
+    AuthUser? user;
+    var message = 'No pudimos identificar el tipo de cuenta.';
+    try {
+      final idToken = await _googleSignIn.signIn();
+      if (idToken == null || !mounted) return;
+      final result = await _repository.loginWithGoogle(idToken: idToken);
+      user = result.user;
+      if (mounted) _passwordController.clear();
+    } on ApiException catch (error) {
+      message = error.message;
+    } on NetworkException catch (error) {
+      message = error.message;
+    } catch (_) {
+      message = 'No pudimos iniciar sesión. Intenta nuevamente.';
+    } finally {
+      if (mounted) setState(() => _isGoogleSubmitting = false);
+    }
+    if (mounted) _finishLogin(user, message);
+  }
+
+  void _finishLogin(AuthUser? user, String message) {
+    final route = switch (user?.role) {
+      'patient' => AppRoutes.patientDashboard,
+      'therapist' => AppRoutes.therapistDashboard,
+      _ => null,
+    };
+    if (route != null) {
+      Navigator.of(context).pushReplacementNamed(route, arguments: user);
+      return;
     }
     if (mounted) {
       ScaffoldMessenger.of(context)
@@ -217,7 +265,9 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(
                   height: 54,
                   child: FilledButton(
-                    onPressed: _isSubmitting ? null : _submit,
+                    onPressed: _isSubmitting || _isGoogleSubmitting
+                        ? null
+                        : _submit,
                     style: FilledButton.styleFrom(
                       backgroundColor: AppTheme.primary,
                       disabledBackgroundColor: AppTheme.primary,
@@ -243,6 +293,45 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                   ),
+                ),
+
+                const SizedBox(height: 24),
+
+                const Row(
+                  children: [
+                    Expanded(child: Divider()),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 14),
+                      child: Text('o continúa con'),
+                    ),
+                    Expanded(child: Divider()),
+                  ],
+                ),
+
+                const SizedBox(height: 18),
+
+                OutlinedButton.icon(
+                  onPressed: _isSubmitting || _isGoogleSubmitting
+                      ? null
+                      : _submitGoogle,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(54),
+                    side: const BorderSide(color: AppTheme.primary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  icon: _isGoogleSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            semanticsLabel: 'Iniciando sesión con Google',
+                          ),
+                        )
+                      : const Icon(Icons.login),
+                  label: const Text('Continuar con Google'),
                 ),
 
                 const SizedBox(height: 28),
