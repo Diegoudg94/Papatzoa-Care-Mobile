@@ -150,7 +150,7 @@ Todas las rutas de esta sección son relativas a `/api/` y llevan token Bearer. 
 
 | Área | Solicitudes | Contrato que consume el cliente |
 | --- | --- | --- |
-| Panel | `GET patient/dashboard` | `patient`, `therapist`, `next_appointment`, `activity`, `emotional_summary`, `sessions` |
+| Panel | `GET patient/dashboard` | `patient`, `therapist`, `next_appointment`, `between_session_activity`, `emotional_summary`, `sessions` |
 | Actividad | `GET patient/session-activity`; `POST patient/session-activity/{id}/response` | `activity`; respuesta con `estado` y `comentario_paciente` |
 | Citas | `GET patient/appointments`; `GET patient/appointments/{id}` | `upcoming`, `history`; detalle en `appointment` |
 | Disponibilidad | `GET patient/appointments/availability?from=YYYY-MM-DD&to=YYYY-MM-DD` | Terapeuta, zona horaria, modalidades y horarios; rango máximo de 31 días |
@@ -163,6 +163,26 @@ Todas las rutas de esta sección son relativas a `/api/` y llevan token Bearer. 
 | Seguimiento | `POST patient/diary/{id}/follow-ups` | `nota` de 1 a 2000 caracteres; respuesta 201 con `follow_up` |
 | Red de apoyo | `GET patient/support-network`; `GET patient/support-network/options`; `POST patient/support-network`; `PUT patient/support-network/{id}`; `DELETE patient/support-network/{id}` | `contacts`, opciones de confianza y tipos de apoyo; escritura en `contact`; alta 201, actualización 200 y baja 204 |
 | Notificaciones | `GET notifications`; `GET notifications/unread-count`; `POST notifications/{id}/read`; `POST notifications/read-all` | `notifications`, `unread_count`, acción opcional por aviso |
+
+### Actividad entre sesiones
+
+El panel muestra una tarjeta compacta con el título real y el estado. Si
+`between_session_activity` es `null`, muestra el estado vacío. «Ver actividad»
+abre una pantalla completa y consulta `GET patient/session-activity` de nuevo;
+así recibe cambios recientes del terapeuta. La respuesta es `{"activity": null}`
+o un objeto con `id`, `title`, `instructions`, `objective` opcional,
+`suggested_date`, `status` y `response` opcional. No hay acceso directo a
+Supabase desde Flutter.
+
+El wizard muestra actividad, selección de avance, comentario opcional y
+revisión. Envía `estado: intentada` para «La intenté» o `estado: realizada`
+para «La realicé», junto con `comentario_paciente` (cadena vacía permitida),
+mediante `POST patient/session-activity/{id}/response`. Deshabilita el envío
+mientras espera, conserva el borrador si falla y recarga el panel al salir.
+Una respuesta `intentada` puede actualizarse porque la web lo permite; una
+actividad `realizada` deja de ser la actividad actual. El backend valida
+pertenencia, visibilidad y límite de 3000 caracteres, cifra el comentario y
+notifica al terapeuta con `session_activity_responded`.
 
 Los errores 409 de horarios ocupados y los 422 de validación se convierten en mensajes de usuario. El diario valida emoción personalizada de hasta 100 caracteres e intensidad de 1 a 10. La red de apoyo envía nombre, relación, nivel de confianza, tipos de apoyo y datos opcionales de teléfono y nota; sus límites y opciones se obtienen del backend. Las operaciones del cliente no hacen reintentos automáticos.
 
