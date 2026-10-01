@@ -1,10 +1,10 @@
 # Papatzoa Care Mobile
 
-Cliente Flutter para pacientes y terapeutas. Incluye login por correo y contraseña, Google Sign-In en iOS, token Sanctum en almacenamiento seguro, restauración de sesión, navegación por rol y logout. Los dashboards son provisionales.
+Cliente Flutter para pacientes y terapeutas. Incluye autenticación por correo y Google Sign-In en iOS, token Sanctum en almacenamiento seguro y restauración de sesión. El módulo de pacientes ofrece panel, citas, diario emocional, actividades de sesión, red de apoyo, notificaciones y cuenta. El dashboard de terapeutas sigue siendo provisional.
 
 ## Desarrollo
 
-Entorno verificado: Flutter 3.47.5 y Dart 3.13.4. El backend local debe ofrecer `/api/login`, `/api/login/google`, `/api/me` y `/api/logout` en el puerto 8000.
+Entorno usado en desarrollo: Flutter 3.47.5 y Dart 3.13.4. El backend local debe ofrecer los endpoints de autenticación y del módulo de pacientes descritos en la documentación técnica, en el puerto 8000.
 
 ```sh
 flutter pub get

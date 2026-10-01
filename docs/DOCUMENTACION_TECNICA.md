@@ -1,10 +1,10 @@
 # Documentación técnica de Papatzoa Care Mobile
 
-Revisión: 27 de septiembre de 2026. Describe el código móvil local. La API se desarrolla en otro repositorio; los contratos de esta página están respaldados por los modelos y las pruebas con HTTP simulado, no por una prueba de integración contra el servidor desplegado.
+Revisión: 30 de septiembre de 2026. Describe el código móvil local. La API se desarrolla en otro repositorio; los contratos de esta página están respaldados por los modelos y las pruebas con HTTP simulado, no por una prueba de integración contra el servidor desplegado.
 
 ## 1. Alcance y tecnologías
 
-Cliente Flutter para pacientes y terapeutas. Implementa login por correo y contraseña, Google Sign-In en iOS, persistencia del token Sanctum, restauración de sesión, navegación por rol y logout. Los dashboards son pantallas provisionales.
+Cliente Flutter para pacientes y terapeutas. Implementa login por correo y contraseña, Google Sign-In en iOS, persistencia del token Sanctum, restauración de sesión, navegación por rol y logout. El módulo de pacientes incluye panel, citas, diario emocional, actividad de sesión, red de apoyo, notificaciones y cuenta. El dashboard del terapeuta sigue siendo provisional.
 
 | Componente | Configuración |
 | --- | --- |
@@ -15,6 +15,8 @@ Cliente Flutter para pacientes y terapeutas. Implementa login por correo y contr
 | HTTP | `http: ^1.0.0` |
 | Almacenamiento | `flutter_secure_storage: ^11.2.0` |
 | Google | `google_sign_in: ^7.2.0` |
+| Contactos | `flutter_contacts: ^2.5.0` |
+| Enlaces externos | `url_launcher: ^6.3.2` |
 | Validación | `flutter_test`, `flutter_lints: ^6.0.0` |
 | Plataformas presentes | Android e iOS |
 
@@ -30,7 +32,7 @@ lib/
     config/app_environment.dart              Entorno y URL base
     network/api_client.dart                  Transporte HTTP y Bearer opcional
     network/api_exceptions.dart              Errores de API y red
-    routing/app_router.dart                  Builders de login y dashboards
+    routing/app_router.dart                  Builders de login, pacientes y terapeuta
     routing/app_routes.dart                  Constantes de rutas
     theme/app_theme.dart                     Paleta y temas
   features/auth/
@@ -41,11 +43,17 @@ lib/
     presentation/pages/auth_gate.dart        Decisión de arranque
     presentation/pages/login_page.dart       Login por correo o Google
     presentation/widgets/logout_button.dart
-  features/patient/presentation/pages/patient_dashboard_page.dart
+  features/patient/
+    data/models/                           DTO de panel, citas, diario, red y avisos
+    data/repositories/                     Acceso autenticado a la API de pacientes
+    presentation/pages/                    Panel, citas, actividad, avisos y cuenta
+    presentation/diary/                    Lista, detalle y asistente del diario
+    presentation/support_network/          CRUD, selector nativo y WhatsApp
+    presentation/widgets/                  Navegación inferior compartida
   features/therapist/presentation/pages/therapist_dashboard_page.dart
 ```
 
-La UI usa `StatefulWidget` y `setState`, sin Provider, Riverpod ni BLoC. `PapatzoaApp` crea un `AuthRepository` para el gate y las rutas, y lo cierra al desmontarse. Repositorio, cliente HTTP y almacenamiento admiten inyección para pruebas. `currentUser` vive en memoria dentro del repositorio.
+La UI usa `StatefulWidget` y `setState`, sin Provider, Riverpod ni BLoC. `PapatzoaApp` crea un `AuthRepository` para el gate y las rutas, y lo cierra al desmontarse. Los repositorios de pacientes comparten el `ApiClient` y leen `auth_token` de almacenamiento seguro para cada solicitud. Repositorio, cliente HTTP y almacenamiento admiten inyección para pruebas. `currentUser` vive en memoria dentro del repositorio.
 
 ## 3. Entornos y ejecución
 
@@ -64,13 +72,13 @@ flutter run -d ios --dart-define=ENV=development
 flutter run --dart-define=ENV=production
 ```
 
-En desarrollo, Laravel debe escuchar en el puerto 8000 y ofrecer `/api/login`, `/api/login/google`, `/api/me` y `/api/logout`. En dispositivos físicos las direcciones de desarrollo no apuntan al equipo anfitrión: configurar una dirección accesible y revisar el transporte nativo.
+En desarrollo, Laravel debe escuchar en el puerto 8000 y ofrecer los endpoints de autenticación y pacientes de esta página. En dispositivos físicos las direcciones de desarrollo no apuntan al equipo anfitrión: configurar una dirección accesible y revisar el transporte nativo.
 
 ## 4. Cliente HTTP
 
-`ApiClient` normaliza la URL con barra final para preservar `/api/`. Sus consumidores usan rutas relativas, como `login` o `me`; se rechazan rutas con barra inicial o esquema. Ofrece GET, POST, PUT, PATCH y DELETE. GET y POST aceptan un token opcional por llamada y añaden `Authorization: Bearer <token>` solo cuando se proporciona. No hay token global ni otro cliente HTTP para autenticación.
+`ApiClient` normaliza la URL con barra final para preservar `/api/`. Sus consumidores usan rutas relativas, como `login` o `me`; se rechazan rutas con barra inicial o esquema. Ofrece GET, POST, PUT, PATCH y DELETE. GET, POST, PUT y DELETE aceptan un token opcional por llamada y añaden `Authorization: Bearer <token>` solo cuando se proporciona. No hay token global ni otro cliente HTTP para autenticación.
 
-Todas las solicitudes envían `Accept: application/json`. Los cuerpos se serializan con `jsonEncode` y `Content-Type: application/json`. El timeout de 20 segundos cubre envío y lectura. Los códigos fuera de 200–299 producen `ApiException` con código HTTP y mensaje genérico. Socket, `http.ClientException` y timeout producen `NetworkException`. Ni el token ni el cuerpo de error del servidor se imprimen. No hay refresh token ni reintentos automáticos en el cliente.
+Todas las solicitudes envían `Accept: application/json`. Los cuerpos se serializan con `jsonEncode` y `Content-Type: application/json`. El timeout de 20 segundos cubre envío y lectura. Los códigos fuera de 200–299 producen `ApiException` con código HTTP, cuerpo de respuesta para interpretar errores de validación y mensaje genérico. Socket, `http.ClientException` y timeout producen `NetworkException`. Ni el token ni el cuerpo de error del servidor se imprimen. No hay refresh token ni reintentos automáticos en el cliente.
 
 ## 5. Contratos y flujo de autenticación
 
@@ -99,7 +107,7 @@ La forma esperada de `user` es:
 }
 ```
 
-`AuthUser` convierte `apellido: null` en cadena vacía. La navegación usa `role`, no el booleano `terapeuta`.
+`AuthUser` convierte `apellido: null` en cadena vacía y admite `avatar_url` opcional. La navegación usa `role`, no el booleano `terapeuta`.
 
 ### Restauración de sesión
 
@@ -117,17 +125,54 @@ La llamada a `/me` incluye Bearer. El gate reemplaza el stack al navegar. No hay
 
 ### Logout
 
-Ambos dashboards provisionales muestran «Cerrar sesión». El botón se deshabilita durante el proceso. `AuthRepository.logout()` lee el token y, si existe, envía `POST /api/logout` con Bearer. En `finally` borra `auth_token` y limpia `currentUser`. Un 401 o un fallo de red no impiden el cierre local. Después se abre `/login` con `pushNamedAndRemoveUntil`, eliminando las rutas anteriores para que «atrás» no regrese al dashboard. El logout remoto durante un fallo de red queda sin confirmar, aunque el token local se elimina.
+Ambos roles ofrecen «Cerrar sesión»; el paciente también lo encuentra en su cuenta. El botón se deshabilita durante el proceso. `AuthRepository.logout()` lee el token y, si existe, envía `POST /api/logout` con Bearer. En `finally` borra `auth_token` y limpia `currentUser`. Un 401 o un fallo de red no impiden el cierre local. Después se abre `/login` con `pushNamedAndRemoveUntil`, eliminando las rutas anteriores para que «atrás» no regrese al dashboard. El logout remoto durante un fallo de red queda sin confirmar, aunque el token local se elimina.
 
 ## 6. Interfaz y rutas
 
-`AppRouter` registra `/login`, `/patient` y `/therapist`. Los dashboards reciben `AuthUser` como argumento y muestran solo una bienvenida provisional y el botón de logout. Las constantes de citas, diario, red de apoyo, pacientes y cuenta existen, pero no tienen pantallas ni builders. Registro y recuperación de contraseña siguen deshabilitados. El formulario conserva `SafeArea`, desplazamiento con teclado abierto, Next/Done, visibilidad de contraseña y liberación de controladores en `dispose`.
+`AppRouter` registra `/login`, `/patient`, `/therapist` y las rutas de pacientes de la tabla siguiente. Los dashboards resuelven `AuthUser` desde el argumento o `currentUser`; si falta, muestran el login. Las rutas de pacientes construyen sus repositorios con el cliente HTTP compartido. Registro y recuperación de contraseña siguen deshabilitados. El formulario conserva `SafeArea`, desplazamiento con teclado abierto, Next/Done, visibilidad de contraseña y liberación de controladores en `dispose`.
 
-## 7. Configuración nativa y compilación
+| Ruta | Pantalla |
+| --- | --- |
+| `/patient` | Panel con terapeuta, próxima cita, actividad y resumen emocional |
+| `/patient/citas` | Próximas citas e historial |
+| `/patient/citas/nueva` | Selección de horario y solicitud de cita |
+| `/patient/citas/detalle` | Detalle; requiere ID entero como argumento de ruta |
+| `/patient/diario` | Lista y flujo de registros emocionales |
+| `/patient/red-apoyo` | Contactos de apoyo |
+| `/patient/notificaciones` | Notificaciones y acciones vinculadas |
+| `/patient/mi-cuenta` | Datos de cuenta y cierre de sesión |
+
+El flujo de reagendar y la actividad de sesión tienen pantallas que se abren desde las vistas de pacientes. `patient_bottom_navigation.dart` comparte la navegación principal.
+
+## 7. API del módulo de pacientes
+
+Todas las rutas de esta sección son relativas a `/api/` y llevan token Bearer. Los repositorios rechazan localmente un token ausente con 401. Un 401 en el panel invalida la sesión local y vuelve al login.
+
+| Área | Solicitudes | Contrato que consume el cliente |
+| --- | --- | --- |
+| Panel | `GET patient/dashboard` | `patient`, `therapist`, `next_appointment`, `activity`, `emotional_summary`, `sessions` |
+| Actividad | `GET patient/session-activity`; `POST patient/session-activity/{id}/response` | `activity`; respuesta con `estado` y `comentario_paciente` |
+| Citas | `GET patient/appointments`; `GET patient/appointments/{id}` | `upcoming`, `history`; detalle en `appointment` |
+| Disponibilidad | `GET patient/appointments/availability?from=YYYY-MM-DD&to=YYYY-MM-DD` | Terapeuta, zona horaria, modalidades y horarios; rango máximo de 31 días |
+| Solicitud | `POST patient/appointments` | `start`, `end`, `motivo`, `modalidad`; lee `appointment` |
+| Reagenda | `POST patient/appointments/{id}/reschedule` | `start`, `end`; exige cita nueva en respuesta 201 |
+| Propuesta | `POST patient/appointments/{id}/reschedule-proposal/accept` | Exige respuesta 201 con cita nueva vinculada a la anterior |
+| Cancelación | `POST patient/appointments/{id}/cancel` | `reason` opcional; exige `appointment.status = cancelada` |
+| Diario | `GET patient/diary`; `GET patient/diary/options`; `GET patient/diary/{id}` | `entries`, opciones de emociones e intensidad, detalle en `entry` |
+| Registro emocional | `POST patient/diary` | `emocion` obligatoria; `emocion_otro`, `intensidad`, `situacion`, `pensamiento`, `conducta`, `interpretacion`, `reestructuracion` opcionales; respuesta 201 con `entry` |
+| Seguimiento | `POST patient/diary/{id}/follow-ups` | `nota` de 1 a 2000 caracteres; respuesta 201 con `follow_up` |
+| Red de apoyo | `GET patient/support-network`; `GET patient/support-network/options`; `POST patient/support-network`; `PUT patient/support-network/{id}`; `DELETE patient/support-network/{id}` | `contacts`, opciones de confianza y tipos de apoyo; escritura en `contact`; alta 201, actualización 200 y baja 204 |
+| Notificaciones | `GET notifications`; `GET notifications/unread-count`; `POST notifications/{id}/read`; `POST notifications/read-all` | `notifications`, `unread_count`, acción opcional por aviso |
+
+Los errores 409 de horarios ocupados y los 422 de validación se convierten en mensajes de usuario. El diario valida emoción personalizada de hasta 100 caracteres e intensidad de 1 a 10. La red de apoyo envía nombre, relación, nivel de confianza, tipos de apoyo y datos opcionales de teléfono y nota; sus límites y opciones se obtienen del backend. Las operaciones del cliente no hacen reintentos automáticos.
+
+La red de apoyo puede importar un contacto elegido por el usuario mediante el selector nativo. Se pide permiso de contactos cuando se usa esa función y se ofrece abrir ajustes si queda denegado permanentemente. El enlace de WhatsApp se construye con lada, teléfono y mensaje editable; abrirlo requiere una aplicación compatible. El acceso nativo a contactos y la apertura de enlaces deben comprobarse en dispositivos reales.
+
+## 8. Configuración nativa y compilación
 
 ### iOS
 
-Bundle ID: `com.papatzoa.papatzoaMobile`. Deployment target: iOS 15.0. `Runner.entitlements` declara `keychain-access-groups` vacío y está referenciado por Debug, Profile y Release. `Info.plist` incluye los IDs y esquema de Google. Verificar firma, equipo de desarrollo, retorno OAuth, acceso real a Keychain y conectividad en dispositivo antes de distribuir.
+Bundle ID: `com.papatzoa.papatzoaMobile`. Deployment target: iOS 15.0. `Runner.entitlements` declara `keychain-access-groups` vacío y está referenciado por Debug, Profile y Release. `Info.plist` incluye los IDs y esquema de Google y `NSContactsUsageDescription` para el selector de contactos. Verificar firma, equipo de desarrollo, retorno OAuth, acceso real a Keychain y conectividad en dispositivo antes de distribuir.
 
 ```sh
 flutter build ios --simulator --debug --dart-define=ENV=development
@@ -145,9 +190,9 @@ flutter build apk --debug --dart-define=ENV=development
 flutter build appbundle --release --dart-define=ENV=production
 ```
 
-Release usa actualmente firma debug. El permiso `INTERNET` está en manifests debug/profile, pero falta en el principal. Antes de distribuir, configurar firma release, permiso de red principal y transporte de cada variante. Estos comandos describen el proceso; no certifican una compilación release validada.
+Release usa actualmente firma debug. El manifest principal declara `READ_CONTACTS`. El permiso `INTERNET` está en manifests debug/profile, pero falta en el principal. Antes de distribuir, configurar firma release, permiso de red principal y transporte de cada variante. Estos comandos describen el proceso; no certifican una compilación release validada.
 
-## 8. Pruebas y verificación
+## 9. Pruebas y verificación
 
 ```sh
 dart format lib test
@@ -156,7 +201,7 @@ flutter test
 git diff --check
 ```
 
-Validación del 27 de septiembre de 2026: `flutter analyze` sin incidencias y 35 tests aprobados. Los tests usan `MockClient` y almacenamiento simulado; no hacen solicitudes reales ni certifican Google OAuth o Keychain en un dispositivo.
+Validación del 30 de septiembre de 2026: `flutter analyze` sin incidencias, 146 tests aprobados y `git diff --check` sin errores. Los tests usan `MockClient` y almacenamiento simulado; no hacen solicitudes reales ni certifican Google OAuth, Keychain, contactos o enlaces externos en un dispositivo.
 
 | Archivo | Cobertura principal |
 | --- | --- |
@@ -167,7 +212,9 @@ Validación del 27 de septiembre de 2026: `flutter analyze` sin incidencias y 35
 | `test/session_gate_test.dart` | Sin token, ambos roles, 401, retry y logout sin red |
 | `test/widget_test.dart` | Formulario, carga, teclado y arranque |
 | `test/auth_test_support.dart` | Fixtures y cliente simulado |
+| `test/patient_*_repository_test.dart`, `test/notification_repository_test.dart` | Contratos HTTP y errores de pacientes |
+| `test/patient_*_test.dart`, `test/support_network_phase_10c_test.dart` | Navegación y flujos de pacientes |
 
-## 9. Mantenimiento y pendientes
+## 10. Mantenimiento y pendientes
 
-Añadir módulos en `features`, reutilizar `ApiClient`, registrar nuevas rutas y mantener contratos cubiertos por pruebas. No versionar tokens, contraseñas ni claves de firma. Pendientes funcionales: dashboards reales, citas, diario, red de apoyo, notificaciones, registro y recuperación de contraseña. Pendientes de plataforma: Android OAuth, firma Android release, permiso de red release y pruebas nativas de OAuth, almacenamiento y conectividad.
+Añadir módulos en `features`, reutilizar `ApiClient`, registrar nuevas rutas y mantener contratos cubiertos por pruebas. No versionar tokens, contraseñas ni claves de firma. Pendientes funcionales: dashboard del terapeuta, registro y recuperación de contraseña. Pendientes de plataforma: Android OAuth, firma Android release, permiso de red release y pruebas nativas de OAuth, almacenamiento, contactos, enlaces y conectividad.
