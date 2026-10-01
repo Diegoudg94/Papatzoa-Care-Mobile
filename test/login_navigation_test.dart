@@ -20,7 +20,7 @@ Future<void> submitLogin(WidgetTester tester, MockClient client) async {
   await tester.pumpWidget(
     MaterialApp(
       theme: AppTheme.light,
-      routes: AppRouter.routes,
+      routes: AppRouter.routesFor(repository),
       home: LoginPage(repository: repository),
     ),
   );
@@ -50,7 +50,7 @@ void main() {
           return http.Response(jsonEncode(json), 200);
         }),
       );
-      expect(requests, 1);
+      expect(requests, role == 'patient' ? 3 : 1);
       if (role == 'unexpected') {
         expect(find.byType(LoginPage), findsOneWidget);
         expect(
@@ -63,11 +63,7 @@ void main() {
         );
       } else {
         expect(
-          find.text(
-            role == 'patient'
-                ? 'Dashboard del paciente'
-                : 'Panel del terapeuta',
-          ),
+          find.text(role == 'patient' ? 'Tu espacio' : 'Panel del terapeuta'),
           findsOneWidget,
         );
         expect(find.text('Hola, Ricardo'), findsOneWidget);

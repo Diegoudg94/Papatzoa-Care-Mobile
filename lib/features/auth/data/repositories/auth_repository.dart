@@ -14,8 +14,17 @@ class AuthRepository {
 
   final ApiClient _apiClient;
   final FlutterSecureStorage _storage;
+  ApiClient get apiClient => _apiClient;
   AuthUser? _currentUser;
   AuthUser? get currentUser => _currentUser;
+
+  Future<void> invalidateSession() async {
+    try {
+      await _storage.delete(key: 'auth_token');
+    } finally {
+      _currentUser = null;
+    }
+  }
 
   Future<AuthUser?> restoreSession() async {
     final token = await _storage.read(key: 'auth_token');

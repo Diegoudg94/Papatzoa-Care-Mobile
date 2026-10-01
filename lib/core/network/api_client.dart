@@ -30,13 +30,14 @@ class ApiClient {
   Future<http.Response> post(String path, {Object? body, String? token}) =>
       _send('POST', path, body: body, token: token);
 
-  Future<http.Response> put(String path, {Object? body}) =>
-      _send('PUT', path, body: body);
+  Future<http.Response> put(String path, {Object? body, String? token}) =>
+      _send('PUT', path, body: body, token: token);
 
   Future<http.Response> patch(String path, {Object? body}) =>
       _send('PATCH', path, body: body);
 
-  Future<http.Response> delete(String path) => _send('DELETE', path);
+  Future<http.Response> delete(String path, {String? token}) =>
+      _send('DELETE', path, token: token);
 
   Future<http.Response> _send(
     String method,
@@ -61,6 +62,7 @@ class ApiClient {
         throw ApiException(
           'No se pudo completar la solicitud. Inténtalo de nuevo.',
           statusCode: response.statusCode,
+          responseBody: response.body,
         );
       }
       return response;

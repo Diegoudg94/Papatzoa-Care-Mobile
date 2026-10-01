@@ -43,6 +43,10 @@ void main() {
       final json = {
         ...loginJson,
         'message': 'Inicio de sesión con Google correcto.',
+        'user': {
+          ...loginJson['user'] as Map<String, Object>,
+          'avatar_url': 'https://example.test/google.jpg',
+        },
       };
       final repository = repositoryFor(
         MockClient((request) async {
@@ -61,6 +65,7 @@ void main() {
       expect(result.user.id, 32);
       expect(result.user.email, 'usuario@example.com');
       expect(result.user.role, 'patient');
+      expect(result.user.avatarUrl, 'https://example.test/google.jpg');
       expect(repository.currentUser, result.user);
       expect(await const FlutterSecureStorage().readAll(), {
         'auth_token': loginJson['token'],
@@ -153,9 +158,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(LoginPage), findsNothing);
       expect(
-        find.text(
-          role == 'patient' ? 'Dashboard del paciente' : 'Panel del terapeuta',
-        ),
+        find.text(role == 'patient' ? 'Tu espacio' : 'Panel del terapeuta'),
         findsOneWidget,
       );
       expect(

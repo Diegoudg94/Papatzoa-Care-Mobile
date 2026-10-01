@@ -23,6 +23,7 @@ void main() {
     expect(result.user.email, 'usuario@example.com');
     expect(result.user.isTherapist, isFalse);
     expect(result.user.role, 'patient');
+    expect(result.user.avatarUrl, isNull);
     expect(result.message, 'Inicio de sesión correcto.');
   });
 

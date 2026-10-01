@@ -34,7 +34,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        routes: AppRouter.routes,
+        routes: AppRouter.routesFor(repository),
         home: LoginPage(repository: repository),
       ),
     );
@@ -54,7 +54,7 @@ void main() {
     response.complete(http.Response(jsonEncode(loginJson), 200));
     await tester.pumpAndSettle();
     expect(find.byType(CircularProgressIndicator), findsNothing);
-    expect(find.text('Dashboard del paciente'), findsOneWidget);
+    expect(find.text('Tu espacio'), findsOneWidget);
   });
   testWidgets('Papatzoa app starts correctly', (WidgetTester tester) async {
     FlutterSecureStorage.setMockInitialValues({});
@@ -100,7 +100,7 @@ void main() {
     await tester.tap(find.text('Iniciar sesión'));
     await tester.pumpAndSettle();
     expect(find.text('Ingresa un correo válido.'), findsNothing);
-    expect(find.text('Dashboard del paciente'), findsOneWidget);
+    expect(find.text('Tu espacio'), findsOneWidget);
     expect(find.text('Hola, Ricardo'), findsOneWidget);
     expect(find.byType(LoginPage), findsNothing);
     expect(
