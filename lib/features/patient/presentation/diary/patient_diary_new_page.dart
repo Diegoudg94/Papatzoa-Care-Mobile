@@ -400,7 +400,7 @@ class _PatientDiaryNewPageState extends State<PatientDiaryNewPage> {
             ),
             for (final item in options.emotions)
               _choice(
-                '${item.emoji}  ${item.value}',
+                '${diaryEmotionEmoji(item.value, options.emotions)}  ${item.value}',
                 _emotion == item.value,
                 () => setState(() {
                   _emotion = item.value;

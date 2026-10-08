@@ -134,6 +134,34 @@ void main() {
     await tester.tap(find.text('Continuar con Google'));
   }
 
+  testWidgets('Google button is reachable and tappable after vertical drag', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(375, 667);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = repositoryFor(
+      MockClient((_) async => http.Response('{}', 401)),
+    );
+    final google = FakeGoogleSignIn(Future.value(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LoginPage(repository: repository, googleSignInService: google),
+      ),
+    );
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -500),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Continuar con Google'), findsOneWidget);
+    await tester.tap(find.text('Continuar con Google'));
+    await tester.pumpAndSettle();
+    expect(google.calls, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final role in ['patient', 'therapist']) {
     testWidgets('Google navigates to $role from backend role', (tester) async {
       final repository = repositoryFor(

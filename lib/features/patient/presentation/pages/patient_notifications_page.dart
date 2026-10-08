@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/routing/app_routes.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../auth/data/repositories/auth_repository.dart';
 import '../../data/models/app_notification.dart';
 import '../../data/repositories/notification_repository.dart';
@@ -207,12 +206,12 @@ class _PatientNotificationsPageState extends State<PatientNotificationsPage> {
               child: _notifications.isEmpty
                   ? ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      children: const [
-                        SizedBox(height: 170),
+                      children: [
+                        const SizedBox(height: 170),
                         Icon(
                           Icons.notifications_none_rounded,
                           size: 40,
-                          color: AppTheme.primarySoft,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                         SizedBox(height: 14),
                         Center(
@@ -227,7 +226,11 @@ class _PatientNotificationsPageState extends State<PatientNotificationsPage> {
                           child: Text(
                             'Aquí aparecerán novedades sobre tus citas y actividades.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: AppTheme.textSecondary),
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
                           ),
                         ),
                       ],
@@ -271,7 +274,7 @@ class _NotificationTile extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     return Material(
-      color: notification.read ? colors.surface : const Color(0xFFEEF4F0),
+      color: notification.read ? colors.surface : colors.primaryContainer,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -346,10 +349,10 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.cloud_off_outlined,
             size: 38,
-            color: AppTheme.primarySoft,
+            color: Theme.of(context).colorScheme.primary,
           ),
           const SizedBox(height: 14),
           const Text(

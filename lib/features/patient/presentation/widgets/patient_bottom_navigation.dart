@@ -3,21 +3,27 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 
 import '../../../../core/routing/app_routes.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../auth/data/models/auth_user.dart';
 
 class PatientBottomNavigation extends StatelessWidget {
   const PatientBottomNavigation({
     super.key,
     required this.currentRoute,
+    this.onDestinationSelected,
     this.user,
   });
 
   final String currentRoute;
+  final ValueChanged<String>? onDestinationSelected;
   final AuthUser? user;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final tokens = theme.extension<AppColors>();
+    final isDark = theme.brightness == Brightness.dark;
     final items = [
       _Destination(AppRoutes.patientDashboard, 'Inicio', Icons.home_outlined),
       _Destination(AppRoutes.patientDiary, 'Diario', Icons.menu_book_outlined),
@@ -28,8 +34,10 @@ class PatientBottomNavigation extends StatelessWidget {
       ),
       _Destination(AppRoutes.patientAccount, 'Mi perfil', Icons.person_outline),
     ];
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final glassColor = colors.surface.withValues(alpha: isDark ? 0.70 : 0.62);
+    final glassBase = isDark
+        ? (tokens?.surfaceAccent ?? colors.surface)
+        : (tokens?.surfaceElevated ?? colors.surface);
+    final glassColor = glassBase.withValues(alpha: isDark ? 0.96 : 0.92);
     return SafeArea(
       top: false,
       child: Padding(
@@ -45,27 +53,31 @@ class PatientBottomNavigation extends StatelessWidget {
                   color: glassColor,
                   borderRadius: BorderRadius.circular(30),
                   border: Border.all(
-                    color: colors.onSurface.withValues(
-                      alpha: isDark ? 0.24 : 0.28,
+                    color: (tokens?.border ?? colors.outline).withValues(
+                      alpha: isDark ? 0.88 : 0.84,
                     ),
-                    width: 0.8,
+                    width: 1,
                   ),
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      colors.surface.withValues(alpha: isDark ? 0.16 : 0.20),
-                      colors.surface.withValues(alpha: 0.01),
+                      (tokens?.surfaceElevated ?? colors.surface).withValues(
+                        alpha: isDark ? 0.12 : 0.16,
+                      ),
+                      (tokens?.surfaceElevated ?? colors.surface).withValues(
+                        alpha: 0.01,
+                      ),
                     ],
                   ),
                   boxShadow: [
                     BoxShadow(
                       color: colors.shadow.withValues(
-                        alpha: isDark ? 0.18 : 0.09,
+                        alpha: isDark ? 0.16 : 0.06,
                       ),
-                      blurRadius: 26,
-                      spreadRadius: 1,
-                      offset: const Offset(0, 7),
+                      blurRadius: 16,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
@@ -78,6 +90,10 @@ class PatientBottomNavigation extends StatelessWidget {
                           user: index == 3 ? user : null,
                           selected: currentRoute == items[index].route,
                           onTap: () {
+                            if (onDestinationSelected != null) {
+                              onDestinationSelected!(items[index].route);
+                              return;
+                            }
                             if (currentRoute == items[index].route) return;
                             if (items[index].route ==
                                 AppRoutes.patientAccount) {
@@ -130,8 +146,13 @@ class _BottomNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final color = selected ? colors.primary : colors.onSurfaceVariant;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final tokens = theme.extension<AppColors>();
+    final isDark = theme.brightness == Brightness.dark;
+    final color = selected
+        ? (tokens?.primaryActive ?? colors.primary)
+        : colors.onSurfaceVariant;
     final label = destination.label;
     return Semantics(
       button: true,
@@ -141,7 +162,7 @@ class _BottomNavItem extends StatelessWidget {
           : label,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(18),
         child: SizedBox(
           height: 62,
           child: AnimatedContainer(
@@ -150,9 +171,10 @@ class _BottomNavItem extends StatelessWidget {
             margin: const EdgeInsets.symmetric(horizontal: 2),
             decoration: BoxDecoration(
               color: selected
-                  ? colors.primary.withValues(alpha: 0.07)
+                  ? (tokens?.primaryContainer ?? colors.primaryContainer)
+                        .withValues(alpha: isDark ? 0.82 : 0.90)
                   : Colors.transparent,
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

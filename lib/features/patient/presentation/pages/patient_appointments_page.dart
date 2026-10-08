@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/network/api_exceptions.dart';
 import '../../../../core/routing/app_routes.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../auth/data/repositories/auth_repository.dart';
 import '../../data/models/patient_appointment.dart';
 import '../../data/models/patient_appointments_data.dart';
 import '../../data/repositories/patient_appointments_repository.dart';
 import '../widgets/patient_bottom_navigation.dart';
+import 'patient_root_scope.dart';
 
 class PatientAppointmentsPage extends StatefulWidget {
   const PatientAppointmentsPage({
@@ -24,7 +26,9 @@ class PatientAppointmentsPage extends StatefulWidget {
 }
 
 class _PatientAppointmentsPageState extends State<PatientAppointmentsPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   late final TabController _tabs = TabController(length: 2, vsync: this);
   PatientAppointmentsData? _data;
   bool _loading = true;
@@ -84,8 +88,10 @@ class _PatientAppointmentsPageState extends State<PatientAppointmentsPage>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
+    final appColors = theme.extension<AppColors>();
 
     return Scaffold(
       extendBody: true,
@@ -103,10 +109,15 @@ class _PatientAppointmentsPageState extends State<PatientAppointmentsPage>
           ),
         ],
       ),
-      bottomNavigationBar: PatientBottomNavigation(
-        currentRoute: AppRoutes.patientAppointments,
-        user: widget.repository.currentUser,
-      ),
+      bottomNavigationBar: PatientRootScope.contains(context)
+          ? null
+          : PatientBottomNavigation(
+              currentRoute: AppRoutes.patientAppointments,
+              user: widget.repository.currentUser,
+              onDestinationSelected: (route) =>
+                  Navigator.of(context)
+                      .pushNamedAndRemoveUntil(route, (route) => route.isFirst),
+            ),
       body: SafeArea(
         bottom: false,
         child: _forbidden
@@ -146,7 +157,9 @@ class _PatientAppointmentsPageState extends State<PatientAppointmentsPage>
                     child: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: colors.surfaceContainerHighest,
+                        color:
+                            appColors?.surfaceAccent ??
+                            colors.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(18),
                       ),
                       child: TabBar(
@@ -169,6 +182,7 @@ class _PatientAppointmentsPageState extends State<PatientAppointmentsPage>
                   Expanded(
                     child: TabBarView(
                       controller: _tabs,
+                      physics: const NeverScrollableScrollPhysics(),
                       children: [
                         _appointmentList(
                           _data?.upcoming ?? const [],

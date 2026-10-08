@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/data/models/auth_user.dart';
 import '../../features/auth/data/repositories/auth_repository.dart';
-import '../../features/patient/presentation/pages/patient_dashboard_page.dart';
+import '../../features/patient/presentation/pages/patient_root_shell.dart';
 import '../../features/patient/presentation/pages/patient_account_page.dart';
 import '../../features/patient/data/repositories/patient_appointments_repository.dart';
 import '../../features/patient/presentation/pages/patient_appointments_page.dart';
@@ -30,7 +30,7 @@ class AppRouter {
           ModalRoute.of(context)?.settings.arguments as AuthUser? ??
           repository.currentUser;
       if (user == null) return LoginPage(repository: repository);
-      return PatientDashboardPage(user: user, repository: repository);
+      return PatientRootShell(user: user, repository: repository);
     },
     AppRoutes.patientAccount: (_) => PatientAccountPage(repository: repository),
     AppRoutes.patientNotifications: (_) => PatientNotificationsPage(

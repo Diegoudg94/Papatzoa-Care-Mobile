@@ -36,6 +36,29 @@ class DiaryOptions {
   final int intensityMax;
   final bool intensityOptional;
   final List<DiaryInterpretationOption> interpretations;
+
+  String emojiFor(String emotion) => diaryEmotionEmoji(emotion, emotions);
+}
+
+String diaryEmotionEmoji(
+  String emotion, [
+  List<DiaryEmotionOption> catalog = const [],
+]) {
+  for (final option in catalog) {
+    if (option.value.toLowerCase() == emotion.trim().toLowerCase()) {
+      return option.emoji;
+    }
+  }
+  return switch (emotion.trim().toLowerCase()) {
+    'ansiedad' => '😰',
+    'tristeza' => '😢',
+    'enojo' => '😠',
+    'miedo' => '😨',
+    'vergüenza' => '😳',
+    'culpa' => '😔',
+    'alegría' => '😊',
+    _ => '💭',
+  };
 }
 
 class DiaryEmotionOption {

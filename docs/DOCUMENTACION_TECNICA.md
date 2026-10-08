@@ -1,6 +1,6 @@
 # Documentación técnica de Papatzoa Care Mobile
 
-Revisión: 30 de septiembre de 2026. Describe el código móvil local. La API se desarrolla en otro repositorio; los contratos de esta página están respaldados por los modelos y las pruebas con HTTP simulado, no por una prueba de integración contra el servidor desplegado.
+Revisión: 8 de octubre de 2026. Describe el código móvil local. La API se desarrolla en otro repositorio; los contratos de esta página están respaldados por los modelos y las pruebas con HTTP simulado, no por una prueba de integración contra el servidor desplegado.
 
 ## 1. Alcance y tecnologías
 
@@ -11,7 +11,7 @@ Cliente Flutter para pacientes y terapeutas. Implementa login por correo y contr
 | Flutter verificado | 3.47.5 stable |
 | Dart verificado | 3.13.4; restricción `^3.13.4` |
 | Versión de aplicación | `1.0.0+1` |
-| UI | Material 3, tema claro/oscuro según sistema |
+| UI | Material 3, modo claro u oscuro elegido por el paciente y seis paletas |
 | HTTP | `http: ^1.0.0` |
 | Almacenamiento | `flutter_secure_storage: ^11.2.0` |
 | Google | `google_sign_in: ^7.2.0` |
@@ -34,7 +34,10 @@ lib/
     network/api_exceptions.dart              Errores de API y red
     routing/app_router.dart                  Builders de login, pacientes y terapeuta
     routing/app_routes.dart                  Constantes de rutas
-    theme/app_theme.dart                     Paleta y temas
+    theme/app_theme.dart                     Tokens de color y construcción de ThemeData
+    theme/theme_controller.dart              Preferencias persistidas de apariencia
+    theme/theme_preset.dart                  Seis identidades con paletas clara y oscura
+    theme/theme_picker_page.dart             Selector visual de paleta
   features/auth/
     data/models/auth_result.dart             Resultado de login
     data/models/auth_user.dart               Usuario de login y /me
@@ -46,14 +49,22 @@ lib/
   features/patient/
     data/models/                           DTO de panel, citas, diario, red y avisos
     data/repositories/                     Acceso autenticado a la API de pacientes
-    presentation/pages/                    Panel, citas, actividad, avisos y cuenta
+    presentation/pages/                    Shell, panel, citas, actividad, avisos y cuenta
     presentation/diary/                    Lista, detalle y asistente del diario
     presentation/support_network/          CRUD, selector nativo y WhatsApp
     presentation/widgets/                  Navegación inferior compartida
   features/therapist/presentation/pages/therapist_dashboard_page.dart
 ```
 
-La UI usa `StatefulWidget` y `setState`, sin Provider, Riverpod ni BLoC. `PapatzoaApp` crea un `AuthRepository` para el gate y las rutas, y lo cierra al desmontarse. Los repositorios de pacientes comparten el `ApiClient` y leen `auth_token` de almacenamiento seguro para cada solicitud. Repositorio, cliente HTTP y almacenamiento admiten inyección para pruebas. `currentUser` vive en memoria dentro del repositorio.
+La UI usa `StatefulWidget` y `setState`, sin Provider, Riverpod ni BLoC. `PapatzoaApp` crea un `AuthRepository` para el gate y las rutas, y lo cierra al desmontarse. También crea un `ThemeController`, carga la apariencia guardada y reconstruye `MaterialApp` al cambiar el modo o la paleta. Repositorios de pacientes comparten el `ApiClient` y leen `auth_token` de almacenamiento seguro para cada solicitud. Repositorio, cliente HTTP, almacenamiento de autenticación y controlador de tema admiten inyección para pruebas. `currentUser` vive en memoria dentro del repositorio.
+
+### Apariencia
+
+`ThemeController` guarda dos preferencias independientes en `FlutterSecureStorage`: `appearance_theme_mode` (`light` o `dark`) y `appearance_theme_preset` (nombre de `PapatzoaThemePreset`). El modo inicial es claro y la paleta predeterminada es `therapeuticBlueMatte`; un valor de paleta desconocido se corrige a esa opción al cargar. No se sigue automáticamente el modo del sistema: la interfaz permite elegir explícitamente claro u oscuro desde el engrane de Apariencia en el panel.
+
+`PapatzoaThemePreset` define seis identidades: Calma terapéutica, Pastel reconfortante, Lavanda introspectiva, Wellbeing vivo, Mate contemporánea y Mate azulado terapéutico. Cada una contiene una paleta para cada brillo. `AppTheme.colorsFor` convierte esa paleta en `AppColors`, una `ThemeExtension` que centraliza superficies, texto, bordes y acentos semánticos para diario, sesiones, red de apoyo, actividad, terapeuta, consejos y seguimiento emocional. `AppTheme.build` deriva además `ColorScheme`, estilos de componentes y colores de barras del sistema. Las pantallas deben preferir los tokens de `Theme.of(context)` / `AppColors` frente a colores hexadecimales locales para respetar ambas variantes.
+
+El selector de paleta muestra muestras de color calculadas para el brillo actual. Cambiar modo o paleta notifica al `MaterialApp` y aplica la selección sin reiniciar la aplicación. `ThemeMode.system` no se persiste ni se ofrece como opción.
 
 ## 3. Entornos y ejecución
 
@@ -129,11 +140,13 @@ Ambos roles ofrecen «Cerrar sesión»; el paciente también lo encuentra en su 
 
 ## 6. Interfaz y rutas
 
-`AppRouter` registra `/login`, `/patient`, `/therapist` y las rutas de pacientes de la tabla siguiente. Los dashboards resuelven `AuthUser` desde el argumento o `currentUser`; si falta, muestran el login. Las rutas de pacientes construyen sus repositorios con el cliente HTTP compartido. Registro y recuperación de contraseña siguen deshabilitados. El formulario conserva `SafeArea`, desplazamiento con teclado abierto, Next/Done, visibilidad de contraseña y liberación de controladores en `dispose`.
+`AppRouter` registra `/login`, `/patient`, `/therapist` y las rutas de pacientes de la tabla siguiente. `/patient` construye `PatientRootShell`, que mantiene Panel, Diario, Citas y Cuenta en un `PageView` y presenta una sola barra de navegación inferior. `AutomaticKeepAliveClientMixin` conserva el estado y los datos ya cargados al cambiar de pestaña. `PatientRootScope` permite que los accesos internos y las barras de navegación detecten el shell y seleccionen una pestaña sin apilar otra ruta; fuera del shell, cada pantalla conserva navegación compatible mediante rutas con nombre. Notificaciones, red de apoyo, reserva y detalle de cita, actividad, y flujos de alta o detalle del diario siguen siendo pantallas secundarias apiladas sobre la sección raíz.
+
+Los dashboards resuelven `AuthUser` desde el argumento o `currentUser`; si falta, muestran el login. Las rutas de pacientes construyen sus repositorios con el cliente HTTP compartido. Registro y recuperación de contraseña siguen deshabilitados. El formulario de login se adapta a alturas reducidas y teclado abierto, conserva Next/Done, visibilidad de contraseña y libera controladores en `dispose`; sus colores provienen del tema activo.
 
 | Ruta | Pantalla |
 | --- | --- |
-| `/patient` | Panel con terapeuta, próxima cita, actividad y resumen emocional |
+| `/patient` | Shell persistente con barra inferior; pestaña inicial de panel con terapeuta, próxima cita, actividad y resumen emocional |
 | `/patient/citas` | Próximas citas e historial |
 | `/patient/citas/nueva` | Selección de horario y solicitud de cita |
 | `/patient/citas/detalle` | Detalle; requiere ID entero como argumento de ruta |
@@ -142,7 +155,7 @@ Ambos roles ofrecen «Cerrar sesión»; el paciente también lo encuentra en su 
 | `/patient/notificaciones` | Notificaciones y acciones vinculadas |
 | `/patient/mi-cuenta` | Datos de cuenta y cierre de sesión |
 
-El flujo de reagendar y la actividad de sesión tienen pantallas que se abren desde las vistas de pacientes. `patient_bottom_navigation.dart` comparte la navegación principal.
+El flujo de reagendar y la actividad de sesión tienen pantallas que se abren desde las vistas de pacientes. `patient_bottom_navigation.dart` comparte el aspecto y los destinos tanto dentro del shell como en vistas raíz montadas directamente para pruebas o compatibilidad. Al integrarse en el shell notifica la selección al `PageController`; montada directamente navega a la ruta con nombre y elimina las pantallas raíz previas. El panel también ofrece ajustes de Apariencia y accesos rápidos que cambian de sección dentro del shell cuando este está presente.
 
 ## 7. API del módulo de pacientes
 
@@ -231,6 +244,9 @@ Validación del 30 de septiembre de 2026: `flutter analyze` sin incidencias, 146
 | `test/login_navigation_test.dart` | Navegación y mensajes del login por correo |
 | `test/session_gate_test.dart` | Sin token, ambos roles, 401, retry y logout sin red |
 | `test/widget_test.dart` | Formulario, carga, teclado y arranque |
+| `test/theme_controller_test.dart` | Carga, valores predeterminados, persistencia del modo y la paleta |
+| `test/patient_root_shell_test.dart` | Selección de pestañas y conservación del estado del shell |
+| `test/patient_dashboard_test.dart` | Panel, estados del resumen y navegación de accesos rápidos |
 | `test/auth_test_support.dart` | Fixtures y cliente simulado |
 | `test/patient_*_repository_test.dart`, `test/notification_repository_test.dart` | Contratos HTTP y errores de pacientes |
 | `test/patient_*_test.dart`, `test/support_network_phase_10c_test.dart` | Navegación y flujos de pacientes |

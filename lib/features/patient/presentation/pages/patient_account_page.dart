@@ -4,6 +4,7 @@ import '../../../../core/routing/app_routes.dart';
 import '../../../auth/data/repositories/auth_repository.dart';
 import '../../../auth/presentation/widgets/logout_button.dart';
 import '../widgets/patient_bottom_navigation.dart';
+import 'patient_root_scope.dart';
 
 class PatientAccountPage extends StatelessWidget {
   const PatientAccountPage({super.key, required this.repository});
@@ -30,10 +31,15 @@ class PatientAccountPage extends StatelessWidget {
     return Scaffold(
       extendBody: true,
       appBar: AppBar(title: const Text('Mi cuenta')),
-      bottomNavigationBar: PatientBottomNavigation(
-        currentRoute: AppRoutes.patientAccount,
-        user: user,
-      ),
+      bottomNavigationBar: PatientRootScope.contains(context)
+          ? null
+          : PatientBottomNavigation(
+              currentRoute: AppRoutes.patientAccount,
+              user: user,
+              onDestinationSelected: (route) =>
+                  Navigator.of(context)
+                      .pushNamedAndRemoveUntil(route, (route) => route.isFirst),
+            ),
       body: SafeArea(
         bottom: false,
         child: ListView(

@@ -152,9 +152,29 @@ void main() {
 
     await tester.pumpWidget(const PapatzoaApp());
     await tester.pumpAndSettle();
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
+    expect(find.text('Crear una cuenta').hitTestable(), findsNothing);
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -900),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Crear una cuenta').hitTestable(), findsOneWidget);
+
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, 500));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(TextFormField).first);
+    await tester.pump();
     await tester.ensureVisible(find.text('Iniciar sesión'));
     await tester.pump();
     expect(tester.takeException(), isNull);
     expect(find.text('Iniciar sesión'), findsOneWidget);
+    expect(
+      tester
+          .widget<EditableText>(find.byType(EditableText).first)
+          .focusNode
+          .hasFocus,
+      isTrue,
+    );
   });
 }

@@ -9,6 +9,7 @@ import '../widgets/patient_bottom_navigation.dart';
 import 'diary_date_label.dart';
 import 'patient_diary_detail_page.dart';
 import 'patient_diary_new_page.dart';
+import '../pages/patient_root_scope.dart';
 
 class PatientDiaryPage extends StatefulWidget {
   const PatientDiaryPage({
@@ -23,7 +24,10 @@ class PatientDiaryPage extends StatefulWidget {
   State<PatientDiaryPage> createState() => _PatientDiaryPageState();
 }
 
-class _PatientDiaryPageState extends State<PatientDiaryPage> {
+class _PatientDiaryPageState extends State<PatientDiaryPage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
   List<DiaryEntry> _entries = const [];
   bool _loading = true;
   String? _error;
@@ -103,15 +107,21 @@ class _PatientDiaryPageState extends State<PatientDiaryPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     return Scaffold(
       extendBody: true,
       appBar: AppBar(title: const Text('Diario emocional')),
-      bottomNavigationBar: PatientBottomNavigation(
-        currentRoute: AppRoutes.patientDiary,
-        user: widget.repository.currentUser,
-      ),
+      bottomNavigationBar: PatientRootScope.contains(context)
+          ? null
+          : PatientBottomNavigation(
+              currentRoute: AppRoutes.patientDiary,
+              user: widget.repository.currentUser,
+              onDestinationSelected: (route) =>
+                  Navigator.of(context)
+                      .pushNamedAndRemoveUntil(route, (route) => route.isFirst),
+            ),
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(

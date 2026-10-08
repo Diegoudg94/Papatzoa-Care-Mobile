@@ -77,8 +77,6 @@ void main() {
       await tester.pumpAndSettle();
       await tapTab(tester, 'Mi cuenta');
       expect(find.byType(PatientAccountPage), findsOneWidget);
-      await tester.pageBack();
-      await tester.pumpAndSettle();
       await tapTab(tester, 'Diario');
       await tapTab(tester, 'Mi cuenta');
       await tapTab(tester, 'Mis sesiones');
